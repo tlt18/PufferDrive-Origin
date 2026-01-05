@@ -1437,6 +1437,7 @@ void allocate(Drive *env) {
     env->actions = (float *)calloc(env->active_agent_count * 2, sizeof(float));
     env->rewards = (float *)calloc(env->active_agent_count, sizeof(float));
     env->terminals = (unsigned char *)calloc(env->active_agent_count, sizeof(unsigned char));
+    env->truncations = (unsigned char *)calloc(env->active_agent_count, sizeof(unsigned char));
 }
 
 void free_allocated(Drive *env) {
@@ -1444,6 +1445,7 @@ void free_allocated(Drive *env) {
     free(env->actions);
     free(env->rewards);
     free(env->terminals);
+    free(env->truncations);
     c_close(env);
 }
 
@@ -1994,9 +1996,7 @@ void respawn_agent(Drive *env, int agent_idx) {
 void c_step(Drive *env) {
     memset(env->rewards, 0, env->active_agent_count * sizeof(float));
     memset(env->terminals, 0, env->active_agent_count * sizeof(unsigned char));
-    if (env->truncations != NULL) {
-        memset(env->truncations, 0, env->active_agent_count * sizeof(unsigned char));
-    }
+    memset(env->truncations, 0, env->active_agent_count * sizeof(unsigned char));
     env->timestep++;
 
     // Move static experts
@@ -2124,10 +2124,8 @@ void c_step(Drive *env) {
     int reached_time_limit = (env->timestep + 1) >= env->episode_length;
     int reached_early_termination = (!originals_remaining && env->termination_mode == 1);
     if (reached_time_limit || reached_early_termination) {
-        if (env->truncations != NULL) {
-            for (int i = 0; i < env->active_agent_count; i++) {
-                env->truncations[i] = 1;
-            }
+        for (int i = 0; i < env->active_agent_count; i++) {
+            env->truncations[i] = 1;
         }
         add_log(env);
         c_reset(env);
